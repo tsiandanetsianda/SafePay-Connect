@@ -121,6 +121,38 @@ app.post("/login", async (req, res) => {
   }
 });
 
+app.post("/createTransaction", authenticateToken, async (req, res) => {
+    try {
+        const {username, amount, currency} = req.body;
+        const senderID = req.user.userID;
+        const reciever = await db.collection("users").where("username", "==", username).get();;
+        if(reciever.empty){
+            return res.status(400).json({ message: 'Invalid User' });
+        }
+        const recieverDoc = reciever.docs[0];
+        const recieverID = recieverDoc.id;
+        await db.collection("transaction").doc(uuidv4()).set({
+            senderID: senderID,
+            recieverID: recieverID,
+            amount : amount,
+            currency: currency,
+            timestamp: new Date().toISOString(),
+            status: "pending",
+            scamFlag: false,
+        })
+
+        res.status(201).json({
+            senderID,
+            recieverID,
+            amount,
+            currency,
+        });    
+    } 
+    catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 
 
 
@@ -171,4 +203,22 @@ function authTokenGenerator(id, name, surname){
     const authToken = jwt.sign(payload, privateKey, {expiresIn: '24h'});
     return authToken;
 }
+
+function authenticateToken(req, res, next) {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1]; // expects: "Bearer <token>"
+
+  if (!token) {
+    return res.status(401).json({ message: "Access denied. Token missing." });
+  }
+
+  jwt.verify(token, privateKey, (err, user) => {
+    if (err) {
+      return res.status(403).json({ message: "Invalid or expired token." });
+    }
+    req.user = user; // attach user info to request
+    next();
+  });
+}
+
 

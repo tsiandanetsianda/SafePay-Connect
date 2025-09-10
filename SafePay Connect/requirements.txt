@@ -1,0 +1,3 @@
+npm install express firebase-admin dotenv
+npm install express firebase-admin bcrypt dotenv
+npm install jsonwebtoken

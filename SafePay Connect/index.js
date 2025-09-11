@@ -26,7 +26,7 @@ app.get("/", (req, res) => {
   res.send("Express + Firestore API running 🚀");
 });
 
-// Register endpoint
+// #region User endpoints
 app.post("/register", async (req, res) => {
   try {
     const { name, surname, username, phoneNumber, password, email } = req.body;
@@ -110,6 +110,7 @@ app.post("/login", async (req, res) => {
     await db.collection("keys").doc(userId).update({authToken: token});
     res.status(200).json({
       userId,
+      username:userData.username,
       name: userData.name,
       surname: userData.surname,
       email: userData.email,
@@ -120,30 +121,84 @@ app.post("/login", async (req, res) => {
     res.status(500).send({ error: error.message });
   }
 });
+//#endregion
+
+// #region wallet endpoints
+app.post("/createWallet", authenticateToken, async (req, res) => {
+    try {
+        const {provider, walletNumber} = req.body;
+        const userID = req.user.userID;
+        await db.collection("wallet").doc(uuidv4()).set({
+            userID : userID,
+            provider: provider,
+            walletNumber: walletNumber,
+            isPrimary: true,
+            status: "active",
+            history: []       // update({history: admin.firestore.FieldValue.arrayUnion(transactionId)
+        })
+
+        res.status(201).json({
+            provider,
+            walletNumber,
+            status: "active",
+        });    
+    } 
+    catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+//#endregion
+
+// #region Transaction endpoints
 
 app.post("/createTransaction", authenticateToken, async (req, res) => {
     try {
-        const {username, amount, currency} = req.body;
+        const {username,transactionType, amount , currency} = req.body;
+
         const senderID = req.user.userID;
         const reciever = await db.collection("users").where("username", "==", username).get();;
         if(reciever.empty){
             return res.status(400).json({ message: 'Invalid User' });
         }
-        const recieverDoc = reciever.docs[0];
-        const recieverID = recieverDoc.id;
-        await db.collection("transaction").doc(uuidv4()).set({
+        const recieverID = reciever.docs[0].id;
+
+        // get sender and reciever wallets
+        const senderWallet = await db.collection("wallet").where("userID", "==", senderID).get();
+        if (senderWallet.empty) {
+          return res.status(400).json({ message: 'Sender has no wallet' });
+        }
+        const SenderWalletID = senderWallet.docs[0].id;
+
+        const recipientWallet = await db.collection("wallet").where("userID", "==", recieverID).get();
+        if (recipientWallet.empty) {
+          return res.status(400).json({ message: 'Recipient has no wallet' });
+        }
+        const recipientWalletID = recipientWallet.docs[0].id;
+
+        const transactionID = uuidv4();
+        await db.collection("transaction").doc(transactionID).set({
             senderID: senderID,
             recieverID: recieverID,
             amount : amount,
             currency: currency,
+            type: transactionType,
             timestamp: new Date().toISOString(),
             status: "pending",
             scamFlag: false,
         })
+        await db.collection("wallet").doc(SenderWalletID).update({
+          history: admin.firestore.FieldValue.arrayUnion(transactionID)
+        });
+
+        await db.collection("wallet").doc(recipientWalletID).update({
+          history: admin.firestore.FieldValue.arrayUnion(transactionID)
+        });
 
         res.status(201).json({
             senderID,
             recieverID,
+            transactionType,
             amount,
             currency,
         });    
@@ -154,34 +209,20 @@ app.post("/createTransaction", authenticateToken, async (req, res) => {
 });
 
 
-
-
-
-
-
-
-
-// Create a documents i.e , WALLET, TRANSACTION, KEY, MESSAGES, 
-app.post("/users", async (req, res) => {
-  try {
-    const { name, email } = req.body;
-    const userRef = await db.collection("users").add({ name, email });
-    res.status(201).send({ id: userRef.id, name, email });
-  } catch (error) {
-    res.status(500).send({ error: error.message });
-  }
-});
-
 // Get all documents
-app.get("/users", async (req, res) => {
+app.get("/transactions", authenticateToken, async (req, res) => {
   try {
-    const snapshot = await db.collection("users").get();
-    const users = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    res.send(users);
+    const snapshot = await db.collection("transaction").get();
+    const transactions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    res.send(transactions);
+    console.log("Transactions route called");
+    console.log(transactions);
   } catch (error) {
     res.status(500).send({ error: error.message });
   }
 });
+//#endregion
+
 
 // Start server
 const PORT = process.env.PORT || 3000;
@@ -190,9 +231,7 @@ app.listen(PORT, () => {
 });
 
 
-// Functions section
-// Authtoken function
-
+// #region Helper Functions
 function authTokenGenerator(id, name, surname){
     const payload = {
         userID : id,
@@ -220,5 +259,5 @@ function authenticateToken(req, res, next) {
     next();
   });
 }
-
+//#endregion
 

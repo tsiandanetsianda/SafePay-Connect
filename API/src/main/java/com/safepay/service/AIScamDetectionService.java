@@ -11,8 +11,8 @@ import java.util.regex.Pattern;
 public class AIScamDetectionService {
     
     private final RestTemplate restTemplate = new RestTemplate();
-    private final String HUGGING_FACE_API = "https://api-inference.huggingface.co/models/unitary/toxic-bert";
-    private final String HF_TOKEN = "hf_your_token_here"; // Replace with actual token
+    private final String HUGGING_FACE_API = "https://api-inference.huggingface.co/models/martin-ha/toxic-comment-model";
+    private final String HF_TOKEN = ""; // Free model - no token required
     
     // Advanced pattern matching
     private final Pattern phonePattern = Pattern.compile("(?:(?:\\+27|0)[1-9]\\d{8})|(?:0[6-8]\\d{8})");
@@ -80,7 +80,9 @@ public class AIScamDetectionService {
         try {
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
-            headers.setBearerAuth(HF_TOKEN);
+            if (!HF_TOKEN.isEmpty()) {
+                headers.setBearerAuth(HF_TOKEN);
+            }
             
             Map<String, Object> requestBody = Map.of("inputs", message);
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
@@ -89,15 +91,12 @@ public class AIScamDetectionService {
                 HUGGING_FACE_API, HttpMethod.POST, entity, List.class);
             
             if (response.getBody() != null && !response.getBody().isEmpty()) {
-                Map<String, Object> result = (Map<String, Object>) response.getBody().get(0);
-                List<Map<String, Object>> scores = (List<Map<String, Object>>) result.get("scores");
-                
-                // Look for toxic/scam indicators
-                for (Map<String, Object> scoreMap : scores) {
-                    String label = (String) scoreMap.get("label");
-                    Double score = (Double) scoreMap.get("score");
-                    if ("TOXIC".equals(label) && score > 0.5) {
-                        return score;
+                List<Map<String, Object>> results = (List<Map<String, Object>>) response.getBody();
+                if (!results.isEmpty()) {
+                    Map<String, Object> result = results.get(0);
+                    if (result.containsKey("score")) {
+                        Double score = (Double) result.get("score");
+                        return score > 0.5 ? score : 0.0;
                     }
                 }
             }

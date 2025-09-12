@@ -63,12 +63,9 @@
 
         <!-- HTTP Client for AI APIs -->
         <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-webflux</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.httpcomponents</groupId>
-            <artifactId>httpclient</artifactId>
+            <groupId>org.apache.httpcomponents.client5</groupId>
+            <artifactId>httpclient5</artifactId>
+            <version>5.2</version> <!-- Use the latest stable version -->
         </dependency>
 
         <!-- Testing (JUnit 5 via Spring Boot) -->

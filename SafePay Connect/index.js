@@ -4,24 +4,26 @@ import admin from "firebase-admin";
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcrypt'
 import { v4 as uuidv4 } from 'uuid';
+import axios, { Axios } from "axios";
 import crypto from 'crypto'
 
 
-// Load environment variables
+// #region Load environment variables
 dotenv.config();
 const app = express();
 app.use(express.json());
 
 const privateKey = "fhf7fjJjdhfjvnG1123"
+// #endregion
 
-// Initialize Firestore with service account
+// #regionInitialize Firestore with service account
 admin.initializeApp({
   credential: admin.credential.cert("./safepay-connect-firebase-adminsdk-fbsvc-8175ce9093.json"),
 });
 
 const db = admin.firestore();
-
-// Routes
+//#endregion
+// #region Routes
 app.get("/", (req, res) => {
   res.send("Express + Firestore API running 🚀");
 });
@@ -32,7 +34,7 @@ app.post("/register", async (req, res) => {
     const { name, surname, username, phoneNumber, password, email } = req.body;
 
     //  Check if email already exists
-    const userQuery = await db.collection("users").where("email", "==", email).get();
+    const userQuery = await db.collection("users").where("username", "==", username).get();
     if (!userQuery.empty) {
       return res.status(400).json({ message: 'User already exists' });
     }
@@ -65,16 +67,8 @@ app.post("/register", async (req, res) => {
     });
 
     // Send response to client
-    res.status(201).json({
-      userId,
-      name,
-      surname,
-      username,
-      phoneNumber,
-      email,
-      token
-    });
-
+    res.status(201).json("User has been registered");
+    console.log("User: ", userId, " Has Registered");
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -116,7 +110,7 @@ app.post("/login", async (req, res) => {
       email: userData.email,
       token
     });
-    
+    console.log("User: ", userId, " Has logged In");
   } catch (error) {
     res.status(500).send({ error: error.message });
   }
@@ -126,11 +120,12 @@ app.post("/login", async (req, res) => {
 // #region wallet endpoints
 app.post("/createWallet", authenticateToken, async (req, res) => {
     try {
-        const {provider, walletNumber} = req.body;
+        const {provider,type, walletNumber} = req.body;
         const userID = req.user.userID;
         await db.collection("wallet").doc(uuidv4()).set({
             userID : userID,
             provider: provider,
+            type: type,
             walletNumber: walletNumber,
             history: []       // update({history: admin.firestore.FieldValue.arrayUnion(transactionId)
         })
@@ -163,22 +158,11 @@ app.get("/viewWallet", authenticateToken, async (req, res) => {
         return txDoc.exists ? { id: txDoc.id, ...txDoc.data() } : null;
       })
     );
-
-    // Format response as plain text
-    let output = `Provider: ${walletData.provider}\nWallet Number: ${walletData.walletNumber}\n\nTransactions:\n\n`;
-
-    transactions
-      .filter(t => t !== null)
-      .reverse() // newest → oldest
-      .forEach((t, index) => {
-        for (const [key, value] of Object.entries(t)) {
-          output += `${key}: ${value}\n`;
-        }
-        output += `\n`; // blank line between transactions
-      });
-
-    res.setHeader("Content-Type", "text/plain");
-    res.send(output);
+    res.status(200).json({
+      provider: walletData.provider,
+      walletNumber: walletData.walletNumber,
+      transactions
+    });
 
   } catch (error) {
     res.status(500).send(error.message);
@@ -190,7 +174,7 @@ app.get("/viewWallet", authenticateToken, async (req, res) => {
 // #region Transaction endpoints
 app.post("/createTransaction", authenticateToken, async (req, res) => {
     try {
-        const {username,transactionType, amount , reference } = req.body;
+        const {username,amount , reference } = req.body;
         const senderID = req.user.userID;
         const reciever = await db.collection("users").where("username", "==", username).get();;
         if(reciever.empty){
@@ -215,8 +199,9 @@ app.post("/createTransaction", authenticateToken, async (req, res) => {
         await db.collection("transaction").doc(transactionID).set({
             senderID: senderID,
             recieverID: recieverID,
+            type: senderWallet.docs[0].data().type,
+            walletNumber: senderWallet.docs[0].data().walletNumber,
             amount : amount,
-            type: transactionType,
             reference,
             timestamp: new Date().toISOString(),
             status: "pending",
@@ -256,8 +241,8 @@ app.get("/getTransaction/:id", authenticateToken, async (req, res) => {
       senderID: transactionData.senderID,
       recieverID: transactionData.recieverID,
       amount: transactionData.amount,
-      currency: transactionData.currency,
       type: transactionData.type,
+      walletNumber: transactionData.walletNumber,
       reference: transactionData.reference,
       status: transactionData.status,
       timestamp: transactionData.timestamp
@@ -268,7 +253,7 @@ app.get("/getTransaction/:id", authenticateToken, async (req, res) => {
   }
 });
 
-// PATCH /updateTransaction/:id - update the status of a transaction
+//  update the status of a transaction
 app.patch("/updateTransaction/:id", authenticateToken, async (req, res) => {
   try {
     const transactionID = req.params.id;
@@ -302,6 +287,63 @@ app.patch("/updateTransaction/:id", authenticateToken, async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
+//#endregion
+
+// #region messages endpoints
+app.get("/getMessages", authenticateToken, async (req, res) => {
+  try {
+    const userID = req.user.userID;
+    // Corrected Firestore query
+    const messageQuery = await db.collection("message").where("userID", "==", userID).get();
+    if (messageQuery.empty) {
+      return res.status(404).json({ message: "No messages from user" });
+    }
+
+    // Extract messages
+    const messages = messageQuery.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+
+    // Return JSON
+    res.status(200).json({ messages });
+
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+//#endregion
+
+//#region AI endpoints
+app.post("/Analyze", authenticateToken, async (req, res) => {
+    try {
+        const {message} = req.body;
+        const userID = req.user.userID;
+        const response = await fetch('http://localhost:8080/api/ai-scam/analyze', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message })
+        });
+        
+        const data = await response.json();
+        await db.collection("message").doc(uuidv4()).set({
+          userID,
+          isScam : data.isScam,
+          confidence: data.confidence,
+          riskLevel: data.riskLevel,
+          detectedPatterns: data.detectedPatterns,
+          recommendation: data.recommendation,
+          analysisType: data.analysisType
+        })
+
+        res.status(201).json(data);   
+    } 
+    catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+//#endregion
 
 //#endregion
 

@@ -8,9 +8,10 @@ import { Ionicons } from '@expo/vector-icons';
 // Import screens
 import HomeScreen from './src/screens/HomeScreen';
 import ScamDetectorScreen from './src/screens/ScamDetectorScreen';
-import TransactionVerifierScreen from './src/screens/TransactionVerifierScreen';
-import VoiceSupportScreen from './src/screens/VoiceSupportScreen';
-import SafeRouteScreen from './src/screens/SafeRouteScreen';
+import PaymentConfirmationScreen from './src/screens/PaymentConfirmationScreen';
+import PaymentRequestScreen from './src/screens/PaymentRequestScreen';
+import TrendingScamsScreen from './src/screens/TrendingScamsScreen';
+import WalletScreen from './src/screens/WalletScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -24,14 +25,14 @@ function TabNavigator() {
 
           if (route.name === 'Home') {
             iconName = focused ? 'home' : 'home-outline';
-          } else if (route.name === 'Scan') {
+          } else if (route.name === 'Detector') {
             iconName = focused ? 'shield-checkmark' : 'shield-checkmark-outline';
-          } else if (route.name === 'Verify') {
-            iconName = focused ? 'lock-closed' : 'lock-closed-outline';
-          } else if (route.name === 'Voice') {
-            iconName = focused ? 'mic' : 'mic-outline';
-          } else if (route.name === 'Map') {
-            iconName = focused ? 'map' : 'map-outline';
+          } else if (route.name === 'Confirm') {
+            iconName = focused ? 'checkmark-circle' : 'checkmark-circle-outline';
+          } else if (route.name === 'Request') {
+            iconName = focused ? 'cash' : 'cash-outline';
+          } else if (route.name === 'Wallet') {
+            iconName = focused ? 'wallet' : 'wallet-outline';
           }
 
           return <Ionicons name={iconName} size={size} color={color} />;
@@ -65,35 +66,35 @@ function TabNavigator() {
         }}
       />
       <Tab.Screen 
-        name="Scan" 
+        name="Detector" 
         component={ScamDetectorScreen}
         options={{ 
           headerShown: false,
-          tabBarLabel: 'Scan'
+          tabBarLabel: 'Detector'
         }}
       />
       <Tab.Screen 
-        name="Verify" 
-        component={TransactionVerifierScreen}
+        name="Confirm" 
+        component={PaymentConfirmationScreen}
         options={{ 
           headerShown: false,
-          tabBarLabel: 'Verify'
+          tabBarLabel: 'Confirm'
         }}
       />
       <Tab.Screen 
-        name="Voice" 
-        component={VoiceSupportScreen}
+        name="Request" 
+        component={PaymentRequestScreen}
         options={{ 
           headerShown: false,
-          tabBarLabel: 'Voice'
+          tabBarLabel: 'Request'
         }}
       />
       <Tab.Screen 
-        name="Map" 
-        component={SafeRouteScreen}
+        name="Wallet" 
+        component={WalletScreen}
         options={{ 
           headerShown: false,
-          tabBarLabel: 'Map'
+          tabBarLabel: 'Wallet'
         }}
       />
     </Tab.Navigator>
@@ -107,24 +108,19 @@ export default function App() {
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         <Stack.Screen name="MainTabs" component={TabNavigator} />
         <Stack.Screen 
-          name="ScamDetector" 
-          component={ScamDetectorScreen}
-          options={{ headerShown: true, title: 'AI Scam Detector' }}
-        />
-        <Stack.Screen 
-          name="TransactionVerifier" 
-          component={TransactionVerifierScreen}
-          options={{ headerShown: true, title: 'Transaction Verifier' }}
-        />
-        <Stack.Screen 
-          name="VoiceSupport" 
-          component={VoiceSupportScreen}
-          options={{ headerShown: true, title: 'Voice Support' }}
-        />
-        <Stack.Screen 
-          name="SafeRoute" 
-          component={SafeRouteScreen}
-          options={{ headerShown: true, title: 'SafeRoute Finance' }}
+          name="TrendingScams" 
+          component={TrendingScamsScreen}
+          options={{ 
+            headerShown: true, 
+            title: 'Trending Scams',
+            headerStyle: {
+              backgroundColor: '#F7F9FC',
+            },
+            headerTintColor: '#2D3436',
+            headerTitleStyle: {
+              fontWeight: '600',
+            },
+          }}
         />
       </Stack.Navigator>
     </NavigationContainer>

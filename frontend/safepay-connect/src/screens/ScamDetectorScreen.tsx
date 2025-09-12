@@ -18,12 +18,14 @@ const ScamDetectorScreen = () => {
   const [result, setResult] = useState<any>(null);
 
   const scamPatterns = [
-    { pattern: /click.*link|verify.*account/i, risk: 'high', type: 'Phishing' },
-    { pattern: /congratulations.*won|claim.*prize/i, risk: 'high', type: 'Prize Scam' },
-    { pattern: /urgent.*action|immediate.*response/i, risk: 'medium', type: 'Urgency Scam' },
-    { pattern: /send.*money|transfer.*funds/i, risk: 'medium', type: 'Money Request' },
-    { pattern: /otp|one.*time.*password/i, risk: 'high', type: 'OTP Scam' },
-    { pattern: /suspended.*account|blocked.*card/i, risk: 'high', type: 'Account Scam' },
+    { pattern: /click.*link|verify.*account/i, indicator: 'Contains suspicious link request', type: 'Phishing attempt' },
+    { pattern: /congratulations.*won|claim.*prize/i, indicator: 'Mentions unexpected prize or winnings', type: 'Prize scam' },
+    { pattern: /urgent.*action|immediate.*response/i, indicator: 'Creates false sense of urgency', type: 'Pressure tactic' },
+    { pattern: /send.*money|transfer.*funds/i, indicator: 'Requests money transfer', type: 'Financial fraud' },
+    { pattern: /otp|one.*time.*password/i, indicator: 'Asks for OTP or password', type: 'Credential theft' },
+    { pattern: /suspended.*account|blocked.*card/i, indicator: 'Claims account issues', type: 'Account scam' },
+    { pattern: /tax.*refund|government.*grant/i, indicator: 'Mentions government money', type: 'Government impersonation' },
+    { pattern: /bitcoin|cryptocurrency|investment/i, indicator: 'Promotes investment opportunity', type: 'Investment scam' },
   ];
 
   const analyzeMessage = () => {
@@ -34,24 +36,42 @@ const ScamDetectorScreen = () => {
 
     setAnalyzing(true);
     
-    // Simulate AI analysis
     setTimeout(() => {
-      let detectedScams = [];
-      let riskLevel = 'low';
+      let detectedPatterns = [];
+      let riskScore = 0;
       
-      for (const scam of scamPatterns) {
-        if (scam.pattern.test(message)) {
-          detectedScams.push(scam);
-          if (scam.risk === 'high') riskLevel = 'high';
-          else if (scam.risk === 'medium' && riskLevel !== 'high') riskLevel = 'medium';
+      for (const pattern of scamPatterns) {
+        if (pattern.pattern.test(message)) {
+          detectedPatterns.push(pattern);
+          riskScore += 30;
         }
+      }
+
+      // Additional risk factors
+      if (message.includes('http') || message.includes('bit.ly')) riskScore += 20;
+      if (message.match(/[A-Z]{5,}/)) riskScore += 10; // All caps words
+      if (message.includes('!!!') || message.includes('???')) riskScore += 10;
+
+      let riskLevel = 'low';
+      if (riskScore >= 60) riskLevel = 'high';
+      else if (riskScore >= 30) riskLevel = 'medium';
+
+      const confidence = Math.min(95, 70 + (detectedPatterns.length * 8));
+
+      let recommendation = '';
+      if (riskLevel === 'high') {
+        recommendation = 'DO NOT respond to this message. Delete it immediately and block the sender. If you\'ve already shared any information, contact your bank immediately.';
+      } else if (riskLevel === 'medium') {
+        recommendation = 'Be cautious with this message. Verify the sender through official channels before taking any action. Do not click any links or share personal information.';
+      } else {
+        recommendation = 'This message appears relatively safe, but always remain vigilant. Never share sensitive information via SMS or messaging apps.';
       }
 
       setResult({
         riskLevel,
-        scams: detectedScams,
-        safe: detectedScams.length === 0,
-        confidence: detectedScams.length > 0 ? 85 + Math.random() * 10 : 95,
+        patterns: detectedPatterns,
+        confidence,
+        recommendation,
       });
       setAnalyzing(false);
     }, 1500);
@@ -60,8 +80,8 @@ const ScamDetectorScreen = () => {
   const getRiskColor = (level: string) => {
     switch (level) {
       case 'high': return '#FF6B6B';
-      case 'medium': return '#FFB84D';
-      case 'low': return '#51CF66';
+      case 'medium': return '#FFA94D';
+      case 'low': return '#4ECDC4';
       default: return '#636E72';
     }
   };
@@ -70,20 +90,19 @@ const ScamDetectorScreen = () => {
     <SafeAreaView style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
-          <Ionicons name="shield-checkmark" size={40} color="#FF6B6B" />
+          <Ionicons name="shield-checkmark" size={50} color="#4ECDC4" />
           <Text style={styles.title}>AI Scam Detector</Text>
-          <Text style={styles.subtitle}>
-            Paste suspicious messages to check for scams
-          </Text>
+          <Text style={styles.subtitle}>Analyze suspicious messages instantly</Text>
         </View>
 
-        <View style={styles.inputContainer}>
+        <View style={styles.inputSection}>
+          <Text style={styles.inputLabel}>Paste Message</Text>
           <TextInput
             style={styles.textInput}
-            placeholder="Paste WhatsApp, SMS, or email message here..."
-            placeholderTextColor="#A0A0A0"
+            placeholder="Paste any WhatsApp, SMS, or email message here..."
+            placeholderTextColor="#B2BEC3"
             multiline
-            numberOfLines={6}
+            numberOfLines={8}
             value={message}
             onChangeText={setMessage}
             textAlignVertical="top"
@@ -91,7 +110,7 @@ const ScamDetectorScreen = () => {
         </View>
 
         <TouchableOpacity
-          style={styles.analyzeButton}
+          style={styles.scanButton}
           onPress={analyzeMessage}
           disabled={analyzing}
         >
@@ -99,69 +118,56 @@ const ScamDetectorScreen = () => {
             <ActivityIndicator color="white" />
           ) : (
             <>
-              <Ionicons name="scan" size={20} color="white" />
-              <Text style={styles.buttonText}>Analyze Message</Text>
+              <Ionicons name="scan" size={24} color="white" />
+              <Text style={styles.scanButtonText}>Scan Message</Text>
             </>
           )}
         </TouchableOpacity>
 
         {result && (
           <View style={styles.resultContainer}>
-            <View style={[styles.riskBadge, { backgroundColor: getRiskColor(result.riskLevel) }]}>
-              <Text style={styles.riskText}>
-                {result.riskLevel.toUpperCase()} RISK
-              </Text>
-            </View>
-
-            <View style={styles.confidenceContainer}>
-              <Text style={styles.confidenceLabel}>Confidence:</Text>
-              <Text style={styles.confidenceValue}>{result.confidence.toFixed(1)}%</Text>
-            </View>
-
-            {result.safe ? (
-              <View style={styles.safeMessage}>
-                <Ionicons name="checkmark-circle" size={50} color="#51CF66" />
-                <Text style={styles.safeText}>This message appears to be safe!</Text>
+            <View style={styles.resultHeader}>
+              <View style={styles.metricCard}>
+                <Text style={styles.metricLabel}>Confidence Level</Text>
+                <Text style={styles.confidenceValue}>{result.confidence}%</Text>
               </View>
-            ) : (
-              <View style={styles.warningContainer}>
-                <Ionicons name="warning" size={30} color="#FF6B6B" />
-                <Text style={styles.warningTitle}>Potential Scam Detected!</Text>
-                
-                {result.scams.map((scam: any, index: number) => (
-                  <View key={index} style={styles.scamItem}>
-                    <Text style={styles.scamType}>{scam.type}</Text>
-                    <Text style={styles.scamRisk}>Risk: {scam.risk}</Text>
-                  </View>
-                ))}
-
-                <View style={styles.tipsContainer}>
-                  <Text style={styles.tipsTitle}>Safety Tips:</Text>
-                  <Text style={styles.tip}>• Never share OTPs or passwords</Text>
-                  <Text style={styles.tip}>• Verify sender through official channels</Text>
-                  <Text style={styles.tip}>• Don't click suspicious links</Text>
-                  <Text style={styles.tip}>• Report to your bank immediately if unsure</Text>
+              
+              <View style={styles.metricCard}>
+                <Text style={styles.metricLabel}>Risk Level</Text>
+                <View style={[styles.riskBadge, { backgroundColor: getRiskColor(result.riskLevel) }]}>
+                  <Text style={styles.riskText}>{result.riskLevel.toUpperCase()}</Text>
                 </View>
               </View>
+            </View>
+
+            {result.patterns.length > 0 && (
+              <View style={styles.patternsSection}>
+                <Text style={styles.sectionTitle}>Detected Scam Patterns</Text>
+                {result.patterns.map((pattern: any, index: number) => (
+                  <View key={index} style={styles.patternItem}>
+                    <Ionicons name="alert-circle" size={20} color={getRiskColor(result.riskLevel)} />
+                    <View style={styles.patternContent}>
+                      <Text style={styles.patternIndicator}>{pattern.indicator}</Text>
+                      <Text style={styles.patternType}>{pattern.type}</Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
             )}
+
+            <View style={styles.recommendationSection}>
+              <Text style={styles.sectionTitle}>Recommendation</Text>
+              <View style={[styles.recommendationCard, { borderLeftColor: getRiskColor(result.riskLevel) }]}>
+                <Ionicons 
+                  name={result.riskLevel === 'low' ? 'checkmark-circle' : 'warning'} 
+                  size={24} 
+                  color={getRiskColor(result.riskLevel)} 
+                />
+                <Text style={styles.recommendationText}>{result.recommendation}</Text>
+              </View>
+            </View>
           </View>
         )}
-
-        <View style={styles.exampleContainer}>
-          <Text style={styles.exampleTitle}>Try these example scam messages:</Text>
-          <TouchableOpacity
-            style={styles.exampleButton}
-            onPress={() => setMessage('Congratulations! You won R50,000. Click this link to claim your prize: bit.ly/fake')}
-          >
-            <Text style={styles.exampleText}>Prize Scam Example</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.exampleButton}
-            onPress={() => setMessage('Your bank account has been suspended. Please verify your account immediately by entering your OTP')}
-          >
-            <Text style={styles.exampleText}>Banking Scam Example</Text>
-          </TouchableOpacity>
-        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -174,162 +180,175 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: 'center',
-    padding: 20,
+    paddingTop: 40,
+    paddingBottom: 30,
+    backgroundColor: 'white',
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 5,
   },
   title: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: 'bold',
     color: '#2D3436',
-    marginTop: 10,
+    marginTop: 15,
   },
   subtitle: {
-    fontSize: 14,
+    fontSize: 16,
     color: '#636E72',
     marginTop: 5,
-    textAlign: 'center',
   },
-  inputContainer: {
+  inputSection: {
     margin: 20,
+  },
+  inputLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#2D3436',
+    marginBottom: 10,
   },
   textInput: {
     backgroundColor: 'white',
-    borderRadius: 12,
+    borderRadius: 15,
     padding: 15,
-    fontSize: 16,
-    minHeight: 150,
-    elevation: 2,
+    fontSize: 15,
+    minHeight: 180,
+    color: '#2D3436',
+    borderWidth: 2,
+    borderColor: '#E0E0E0',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 2,
   },
-  analyzeButton: {
-    backgroundColor: '#FF6B6B',
+  scanButton: {
+    backgroundColor: '#4ECDC4',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 15,
+    padding: 16,
     borderRadius: 12,
     marginHorizontal: 20,
-    gap: 10,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 5,
   },
-  buttonText: {
+  scanButtonText: {
     color: 'white',
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '600',
+    marginLeft: 10,
   },
   resultContainer: {
     margin: 20,
-    padding: 20,
+  },
+  resultHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+  },
+  metricCard: {
     backgroundColor: 'white',
-    borderRadius: 12,
-    elevation: 2,
+    borderRadius: 15,
+    padding: 20,
+    width: '48%',
+    alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  metricLabel: {
+    fontSize: 12,
+    color: '#636E72',
+    marginBottom: 8,
+    fontWeight: '500',
+  },
+  confidenceValue: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: '#2D3436',
   },
   riskBadge: {
-    alignSelf: 'center',
     paddingHorizontal: 20,
     paddingVertical: 8,
     borderRadius: 20,
-    marginBottom: 15,
   },
   riskText: {
     color: 'white',
     fontWeight: 'bold',
-    fontSize: 14,
-  },
-  confidenceContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 20,
-    gap: 10,
-  },
-  confidenceLabel: {
     fontSize: 16,
-    color: '#636E72',
   },
-  confidenceValue: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#2D3436',
-  },
-  safeMessage: {
-    alignItems: 'center',
+  patternsSection: {
+    backgroundColor: 'white',
+    borderRadius: 15,
     padding: 20,
+    marginBottom: 15,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 3,
   },
-  safeText: {
+  sectionTitle: {
     fontSize: 18,
-    color: '#51CF66',
     fontWeight: '600',
-    marginTop: 10,
-  },
-  warningContainer: {
-    alignItems: 'center',
-  },
-  warningTitle: {
-    fontSize: 18,
-    color: '#FF6B6B',
-    fontWeight: 'bold',
-    marginTop: 10,
+    color: '#2D3436',
     marginBottom: 15,
   },
-  scamItem: {
+  patternItem: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    width: '100%',
-    padding: 10,
-    backgroundColor: '#FFF5F5',
-    borderRadius: 8,
-    marginBottom: 8,
+    alignItems: 'flex-start',
+    marginBottom: 15,
   },
-  scamType: {
+  patternContent: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  patternIndicator: {
     fontSize: 14,
-    fontWeight: '600',
     color: '#2D3436',
+    fontWeight: '500',
+    marginBottom: 4,
   },
-  scamRisk: {
+  patternType: {
     fontSize: 12,
-    color: '#FF6B6B',
+    color: '#636E72',
+    fontStyle: 'italic',
   },
-  tipsContainer: {
-    width: '100%',
-    marginTop: 20,
+  recommendationSection: {
+    backgroundColor: 'white',
+    borderRadius: 15,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  recommendationCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: '#F7F9FC',
     padding: 15,
-    backgroundColor: '#F0F9FF',
-    borderRadius: 8,
+    borderRadius: 10,
+    borderLeftWidth: 4,
   },
-  tipsTitle: {
-    fontSize: 16,
-    fontWeight: '600',
+  recommendationText: {
+    flex: 1,
+    fontSize: 14,
     color: '#2D3436',
-    marginBottom: 10,
-  },
-  tip: {
-    fontSize: 14,
-    color: '#636E72',
-    marginBottom: 5,
-  },
-  exampleContainer: {
-    margin: 20,
-  },
-  exampleTitle: {
-    fontSize: 14,
-    color: '#636E72',
-    marginBottom: 10,
-  },
-  exampleButton: {
-    backgroundColor: '#E8F4F8',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 8,
-  },
-  exampleText: {
-    color: '#45B7D1',
-    fontSize: 14,
+    lineHeight: 20,
+    marginLeft: 12,
   },
 });
 

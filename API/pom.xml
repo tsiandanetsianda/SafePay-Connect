@@ -61,6 +61,16 @@
             <scope>runtime</scope>
         </dependency>
 
+        <!-- HTTP Client for AI APIs -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-webflux</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.httpcomponents</groupId>
+            <artifactId>httpclient</artifactId>
+        </dependency>
+
         <!-- Testing (JUnit 5 via Spring Boot) -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

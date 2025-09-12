@@ -132,15 +132,11 @@ app.post("/createWallet", authenticateToken, async (req, res) => {
             userID : userID,
             provider: provider,
             walletNumber: walletNumber,
-            isPrimary: true,
-            status: "active",
             history: []       // update({history: admin.firestore.FieldValue.arrayUnion(transactionId)
         })
 
         res.status(201).json({
-            provider,
-            walletNumber,
-            status: "active",
+            message: "Wallet successfully created"
         });    
     } 
     catch (error) {
@@ -148,14 +144,53 @@ app.post("/createWallet", authenticateToken, async (req, res) => {
   }
 });
 
+app.get("/viewWallet", authenticateToken, async (req, res) => {
+  try {
+    const userID = req.user.userID;
+    const walletQuery = await db.collection("wallet").where("userID", "==", userID).get();
+
+    if (walletQuery.empty) {
+      return res.status(404).send("Wallet not found");
+    }
+
+    const walletDoc = walletQuery.docs[0];
+    const walletData = walletDoc.data();
+
+    // Resolve transactions from history
+    const transactions = await Promise.all(
+      (walletData.history || []).map(async (txId) => {
+        const txDoc = await db.collection("transaction").doc(txId).get();
+        return txDoc.exists ? { id: txDoc.id, ...txDoc.data() } : null;
+      })
+    );
+
+    // Format response as plain text
+    let output = `Provider: ${walletData.provider}\nWallet Number: ${walletData.walletNumber}\n\nTransactions:\n\n`;
+
+    transactions
+      .filter(t => t !== null)
+      .reverse() // newest → oldest
+      .forEach((t, index) => {
+        for (const [key, value] of Object.entries(t)) {
+          output += `${key}: ${value}\n`;
+        }
+        output += `\n`; // blank line between transactions
+      });
+
+    res.setHeader("Content-Type", "text/plain");
+    res.send(output);
+
+  } catch (error) {
+    res.status(500).send(error.message);
+  }
+});
+
 //#endregion
 
 // #region Transaction endpoints
-
 app.post("/createTransaction", authenticateToken, async (req, res) => {
     try {
-        const {username,transactionType, amount , currency} = req.body;
-
+        const {username,transactionType, amount , reference } = req.body;
         const senderID = req.user.userID;
         const reciever = await db.collection("users").where("username", "==", username).get();;
         if(reciever.empty){
@@ -181,26 +216,21 @@ app.post("/createTransaction", authenticateToken, async (req, res) => {
             senderID: senderID,
             recieverID: recieverID,
             amount : amount,
-            currency: currency,
             type: transactionType,
+            reference,
             timestamp: new Date().toISOString(),
             status: "pending",
-            scamFlag: false,
         })
         await db.collection("wallet").doc(SenderWalletID).update({
           history: admin.firestore.FieldValue.arrayUnion(transactionID)
         });
-
         await db.collection("wallet").doc(recipientWalletID).update({
           history: admin.firestore.FieldValue.arrayUnion(transactionID)
         });
 
         res.status(201).json({
-            senderID,
-            recieverID,
-            transactionType,
-            amount,
-            currency,
+            message: "Transaction Created",
+            status: "pending",
         });    
     } 
     catch (error) {
@@ -208,21 +238,72 @@ app.post("/createTransaction", authenticateToken, async (req, res) => {
   }
 });
 
-
-// Get all documents
-app.get("/transactions", authenticateToken, async (req, res) => {
+app.get("/getTransaction/:id", authenticateToken, async (req, res) => {
   try {
-    const snapshot = await db.collection("transaction").get();
-    const transactions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    res.send(transactions);
-    console.log("Transactions route called");
-    console.log(transactions);
+    const transactionID = req.params.id;
+
+    // Fetch the transaction document
+    const transactionDoc = await db.collection("transaction").doc(transactionID).get();
+
+    if (!transactionDoc.exists) {
+      return res.status(404).json({ message: "Transaction not found" });
+    }
+
+    const transactionData = transactionDoc.data();
+    // Return transaction details
+    res.status(200).json({
+      id: transactionDoc.id,
+      senderID: transactionData.senderID,
+      recieverID: transactionData.recieverID,
+      amount: transactionData.amount,
+      currency: transactionData.currency,
+      type: transactionData.type,
+      reference: transactionData.reference,
+      status: transactionData.status,
+      timestamp: transactionData.timestamp
+    });
+
   } catch (error) {
-    res.status(500).send({ error: error.message });
+    res.status(500).json({ error: error.message });
   }
 });
-//#endregion
 
+// PATCH /updateTransaction/:id - update the status of a transaction
+app.patch("/updateTransaction/:id", authenticateToken, async (req, res) => {
+  try {
+    const transactionID = req.params.id;
+    const {status } = req.body;
+
+    // Fetch the transaction
+    const transactionDoc = await db.collection("transaction").doc(transactionID).get();
+
+    if (!transactionDoc.exists) {
+      return res.status(404).json({ message: "Transaction not found" });
+    }
+
+    const transactionData = transactionDoc.data();
+    if (transactionData.recieverID !== req.user.userID) {
+      return res.status(403).json({ message: "Only the receiver can update the status" });
+    }
+
+    // Update the status
+    await db.collection("transaction").doc(transactionID).update({
+      status: status,
+      updatedAt: new Date().toISOString() // optional timestamp
+    });
+
+    res.status(200).json({
+      message: "Transaction status updated",
+      transactionID: transactionID,
+      newStatus: status
+    });
+
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+//#endregion
 
 // Start server
 const PORT = process.env.PORT || 3000;
@@ -260,4 +341,3 @@ function authenticateToken(req, res, next) {
   });
 }
 //#endregion
-

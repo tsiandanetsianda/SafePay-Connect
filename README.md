@@ -21,7 +21,7 @@ This is the backend API for SafePay Connect, a secure wallet and transaction pla
 
 1. **Install dependencies:**
    ```sh
-   npm install
+   npm install express dotenv firebase-admin jsonwebtoken bcrypt uuid axios
    ```
 
 2. **Environment variables:**

@@ -35,9 +35,9 @@ const HomeScreen = () => {
         </View>
 
         <View style={styles.statsGrid}>
-          <View style={[styles.statCard, { backgroundColor: '#FF6B6B20' }]}>
+          <View style={[styles.statCard, { backgroundColor: '#6C5CE720' }]}>
             <View style={styles.statIconContainer}>
-              <Ionicons name="shield-checkmark" size={24} color="#FF6B6B" />
+              <Ionicons name="shield-checkmark" size={24} color="#6C5CE7" />
             </View>
             <Text style={styles.statNumber}>24</Text>
             <Text style={styles.statLabel}>Scams Detected</Text>
@@ -60,15 +60,6 @@ const HomeScreen = () => {
             <Text style={styles.statNumber}>156</Text>
             <Text style={styles.statLabel}>Safe Transactions</Text>
             <Text style={styles.statPeriod}>This month</Text>
-          </View>
-
-          <View style={[styles.statCard, { backgroundColor: '#FFA94D20' }]}>
-            <View style={styles.statIconContainer}>
-              <Ionicons name="star" size={24} color="#FFA94D" />
-            </View>
-            <Text style={styles.statNumber}>98%</Text>
-            <Text style={styles.statLabel}>Safety Score</Text>
-            <Text style={styles.statPeriod}>Excellent</Text>
           </View>
         </View>
 
@@ -107,27 +98,27 @@ const HomeScreen = () => {
         >
           <View style={styles.widgetHeader}>
             <View style={styles.widgetTitleContainer}>
-              <Ionicons name="trending-up" size={24} color="#FF6B6B" />
+              <Ionicons name="trending-up" size={24} color="#6C5CE7" />
               <Text style={styles.widgetTitle}>Trending Scams</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color="#636E72" />
           </View>
           
           <View style={styles.alertBanner}>
-            <Ionicons name="alert-circle" size={16} color="#FF6B6B" />
+            <Ionicons name="alert-circle" size={16} color="#6C5CE7" />
             <Text style={styles.alertText}>3 new scam types detected today</Text>
           </View>
 
           {trendingScams.map((scam) => (
             <View key={scam.id} style={styles.scamPreviewItem}>
               <View style={[styles.severityIndicator, 
-                { backgroundColor: scam.severity === 'high' ? '#FF6B6B' : '#FFA94D' }]} 
+                { backgroundColor: scam.severity === 'high' ? '#6C5CE7' : '#4ECDC4' }]} 
               />
               <View style={styles.scamPreviewContent}>
                 <Text style={styles.scamPreviewTitle}>{scam.title}</Text>
                 <Text style={styles.scamPreviewCount}>{scam.count}</Text>
               </View>
-              <Ionicons name="warning" size={16} color={scam.severity === 'high' ? '#FF6B6B' : '#FFA94D'} />
+              <Ionicons name="warning" size={16} color={scam.severity === 'high' ? '#6C5CE7' : '#4ECDC4'} />
             </View>
           ))}
           
@@ -177,7 +168,7 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#FF6B6B',
+    backgroundColor: '#6C5CE7',
   },
   statsGrid: {
     flexDirection: 'row',
@@ -316,14 +307,14 @@ const styles = StyleSheet.create({
   alertBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFF5F5',
+    backgroundColor: '#F7F9FC',
     padding: 10,
     borderRadius: 8,
     marginBottom: 15,
   },
   alertText: {
     fontSize: 12,
-    color: '#FF6B6B',
+    color: '#6C5CE7',
     marginLeft: 6,
     fontWeight: '500',
   },

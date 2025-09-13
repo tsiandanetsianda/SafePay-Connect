@@ -1,11 +1,21 @@
 package com.safepay.controller;
 
-import com.safepay.service.EncryptionService;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
 import java.util.Map;
 
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.safepay.service.EncryptionService;
+
+/**
+ * Controller for handling transaction-related requests.
+ * This class provides endpoints for managing transactions.
+ */
 @RestController
 @RequestMapping("/api/transaction")
 @CrossOrigin(origins = "*")
@@ -14,6 +24,12 @@ public class TransactionController {
     @Autowired
     private EncryptionService encryptionService;
     
+    /**
+     * Endpoint for verifying a transaction.
+     * 
+     * @param request the request containing transaction details for verification.
+     * @return the result of the transaction verification.
+     */
     @PostMapping("/verify")
     public ResponseEntity<Map<String, Object>> verifyTransaction(@RequestBody Map<String, String> request) {
         try {
@@ -38,6 +54,12 @@ public class TransactionController {
         }
     }
     
+    /**
+     * Endpoint for confirming a transaction.
+     * 
+     * @param request the request containing transaction details for confirmation.
+     * @return the result of the transaction confirmation.
+     */
     @PostMapping("/confirm")
     public ResponseEntity<Map<String, Object>> confirmTransaction(@RequestBody Map<String, String> request) {
         String transactionId = request.get("transactionId");

@@ -1,11 +1,12 @@
 com\safepay\config\RestTemplateConfig.class
+com\safepay\model\ScamDetectionRequest.class
+com\safepay\model\ScamDetectionResult.class
+com\safepay\SafePayApplication.class
 com\safepay\service\EncryptionService.class
 com\safepay\controller\AIScamController.class
 com\safepay\controller\ScamDetectionController.class
 com\safepay\service\ScamDetectionService.class
 com\safepay\controller\TransactionController.class
 com\safepay\service\NLPFeatureExtractor.class
-com\safepay\model\ScamDetectionResult.class
 com\safepay\service\AIScamDetectionService.class
-com\safepay\SafePayApplication.class
 com\safepay\security\SecurityConfig.class

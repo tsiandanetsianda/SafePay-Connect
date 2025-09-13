@@ -1,13 +1,20 @@
 package com.safepay.service;
 
-import com.safepay.model.ScamDetectionResult;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.regex.Pattern;
+
 import org.springframework.stereotype.Service;
 
-import java.util.*;
-import java.util.regex.Pattern;
+import com.safepay.model.ScamDetectionResult;
 
 /**
  * Service for detecting SMS/WhatsApp payment scams targeting South African users
+ * This class contains methods for detecting scams based on various criteria.
  */
 @Service
 public class ScamDetectionService {
@@ -174,10 +181,95 @@ public class ScamDetectionService {
      * @return Map of message to analysis result
      */
     public Map<String, ScamDetectionResult> analyzeMessages(List<String> messages) {
+        // Analyze each message for potential scams
+        // The results are stored in a map with the message as the key and the analysis result as the value
         Map<String, ScamDetectionResult> results = new HashMap<>();
         for (String message : messages) {
+            // Analyze the message and store the result
             results.put(message, analyzeMessage(message));
         }
+        // Return the map containing all analysis results
         return results;
+    }
+
+    /**
+     * Detects potential scams in the provided message.
+     * This method analyzes the message content for urgency keywords and other indicators of scams.
+     * 
+     * @param message The message content to analyze.
+     * @return ScamDetectionResult containing the results of the detection.
+     */
+    public ScamDetectionResult detectScam(String message) {
+        boolean isScam = false;
+        double confidence = 0.0;
+        String riskLevel = "LOW";
+        List<String> detectedPatterns = new ArrayList<>();
+        String recommendation = "No scam detected.";
+
+        if (message != null && !message.trim().isEmpty()) {
+            String msgLower = message.toLowerCase();
+            // Urgency keywords
+            for (String keyword : URGENCY_KEYWORDS) {
+                if (msgLower.contains(keyword.toLowerCase())) {
+                    detectedPatterns.add("Urgency keyword: " + keyword);
+                    isScam = true;
+                }
+            }
+            // Fake banking phrases
+            for (String phrase : FAKE_BANKING_PHRASES) {
+                if (msgLower.contains(phrase.toLowerCase())) {
+                    detectedPatterns.add("Fake banking phrase: " + phrase);
+                    isScam = true;
+                }
+            }
+            // Money scam patterns
+            for (String pattern : MONEY_SCAM_PATTERNS) {
+                if (msgLower.contains(pattern.toLowerCase())) {
+                    detectedPatterns.add("Money scam pattern: " + pattern);
+                    isScam = true;
+                }
+            }
+            // Suspicious URLs
+            if (SUSPICIOUS_URL_PATTERN.matcher(msgLower).find()) {
+                detectedPatterns.add("Suspicious URL detected");
+                isScam = true;
+            }
+            // Non-HTTPS links
+            if (NON_HTTPS_PATTERN.matcher(message).find()) {
+                detectedPatterns.add("Non-HTTPS link detected");
+                isScam = true;
+            }
+            // Poor grammar indicators
+            for (String indicator : POOR_GRAMMAR_INDICATORS) {
+                if (msgLower.contains(indicator.toLowerCase())) {
+                    detectedPatterns.add("Poor grammar indicator: " + indicator);
+                    isScam = true;
+                }
+            }
+            // Confidence and risk level
+            int patternCount = detectedPatterns.size();
+            if (isScam) {
+                confidence = Math.min(0.5 + 0.1 * patternCount, 1.0);
+                riskLevel = confidence >= 0.8 ? "HIGH" : confidence >= 0.5 ? "MEDIUM" : "LOW";
+                // Tailored recommendation
+                if (detectedPatterns.stream().anyMatch(p -> p.contains("URL"))) {
+                    recommendation = "Suspicious link detected. Do not click or share personal information.";
+                } else if (detectedPatterns.stream().anyMatch(p -> p.contains("banking"))) {
+                    recommendation = "Potential banking scam detected. Contact your bank through official channels.";
+                } else if (detectedPatterns.stream().anyMatch(p -> p.contains("Money scam"))) {
+                    recommendation = "Money scam detected. Ignore and delete this message.";
+                } else {
+                    recommendation = "Potential scam detected. Do not respond or share personal information.";
+                }
+            } else {
+                confidence = 0.1;
+                riskLevel = "LOW";
+                recommendation = "Message appears safe.";
+            }
+        } else {
+            recommendation = "Message is empty - LOW RISK.";
+        }
+
+        return new ScamDetectionResult(isScam, confidence, riskLevel, detectedPatterns, recommendation);
     }
 }

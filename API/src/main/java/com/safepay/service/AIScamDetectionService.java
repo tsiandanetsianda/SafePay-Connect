@@ -1,14 +1,49 @@
 package com.safepay.service;
 
-import com.safepay.model.ScamDetectionResult;
-import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
-import org.springframework.http.*;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.regex.Pattern;
 
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
+
+import com.safepay.model.ScamDetectionResult;
+
+/**
+ * Service for AI-based scam detection.
+ * This class contains the business logic for detecting scams using AI techniques.
+ */
 @Service
 public class AIScamDetectionService {
+    /**
+     * Analyzes a message for scam indicators and returns a ScamDetectionResult.
+     * This method is used by controllers to provide a simple interface.
+     * @param message The message to analyze.
+     * @return ScamDetectionResult containing scam analysis.
+     */
+    public ScamDetectionResult analyzeMessage(String message) {
+        if (message == null || message.trim().isEmpty()) {
+            return new ScamDetectionResult(false, 0.0, "LOW", new ArrayList<>(), "Message is empty - LOW RISK");
+        }
+        double traditionalScore = performTraditionalAnalysis(message);
+        double aiScore = performAIAnalysis(message);
+        double sentimentScore = analyzeSentiment(message);
+        double finalConfidence = (traditionalScore * 0.4) + (aiScore * 0.4) + (sentimentScore * 0.2);
+        finalConfidence = Math.min(finalConfidence, 1.0);
+        List<String> patterns = detectPatterns(message);
+        boolean isScam = finalConfidence >= 0.6;
+        String riskLevel = finalConfidence >= 0.8 ? "HIGH" : finalConfidence >= 0.4 ? "MEDIUM" : "LOW";
+        String recommendation = generateAdvancedRecommendation(finalConfidence, patterns);
+        return new ScamDetectionResult(isScam, finalConfidence, riskLevel, patterns, recommendation);
+    }
     
     private final RestTemplate restTemplate = new RestTemplate();
     private final String HUGGING_FACE_API = "https://api-inference.huggingface.co/models/martin-ha/toxic-comment-model";
@@ -26,28 +61,28 @@ public class AIScamDetectionService {
         "capitec sms", "fnb cellphone banking", "nedbank money", "absa cash send"
     );
     
-    public ScamDetectionResult analyzeMessage(String message) {
-        if (message == null || message.trim().isEmpty()) {
-            return new ScamDetectionResult(false, 0.0, "LOW", new ArrayList<>(), 
-                "Message is empty - LOW RISK");
-        }
-        
-        // Combine traditional ML with AI model
-        double traditionalScore = performTraditionalAnalysis(message);
-        double aiScore = performAIAnalysis(message);
-        double sentimentScore = analyzeSentiment(message);
-        
-        // Weighted combination
-        double finalConfidence = (traditionalScore * 0.4) + (aiScore * 0.4) + (sentimentScore * 0.2);
-        finalConfidence = Math.min(finalConfidence, 1.0);
-        
-        List<String> patterns = detectPatterns(message);
-        boolean isScam = finalConfidence >= 0.6;
-        String riskLevel = finalConfidence >= 0.8 ? "HIGH" : finalConfidence >= 0.4 ? "MEDIUM" : "LOW";
-        String recommendation = generateAdvancedRecommendation(finalConfidence, patterns);
-        
-        return new ScamDetectionResult(isScam, finalConfidence, riskLevel, patterns, recommendation);
-    }
+    /**
+     * Detects scams based on the provided request.
+     * 
+     * @param request the request containing data for scam detection.
+     * @return the result of the scam detection.
+     */
+    // public ScamDetectionResult detectScam(ScamDetectionRequest request) {
+    //     String message = request.getMessage();
+    //     if (message == null || message.trim().isEmpty()) {
+    //         return new ScamDetectionResult(false, 0.0, "LOW", new ArrayList<>(), "Message is empty - LOW RISK");
+    //     }
+    //     double traditionalScore = performTraditionalAnalysis(message);
+    //     double aiScore = performAIAnalysis(message);
+    //     double sentimentScore = analyzeSentiment(message);
+    //     double finalConfidence = (traditionalScore * 0.4) + (aiScore * 0.4) + (sentimentScore * 0.2);
+    //     finalConfidence = Math.min(finalConfidence, 1.0);
+    //     List<String> patterns = detectPatterns(message);
+    //     boolean isScam = finalConfidence >= 0.6;
+    //     String riskLevel = finalConfidence >= 0.8 ? "HIGH" : finalConfidence >= 0.4 ? "MEDIUM" : "LOW";
+    //     String recommendation = generateAdvancedRecommendation(finalConfidence, patterns);
+    //     return new ScamDetectionResult(isScam, finalConfidence, riskLevel, patterns, recommendation);
+    // }
     
     private double performTraditionalAnalysis(String message) {
         String lower = message.toLowerCase();
@@ -87,11 +122,12 @@ public class AIScamDetectionService {
             Map<String, Object> requestBody = Map.of("inputs", message);
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
             
-            ResponseEntity<List> response = restTemplate.exchange(
-                HUGGING_FACE_API, HttpMethod.POST, entity, List.class);
-            
+            ResponseEntity<List<Map<String, Object>>> response = restTemplate.exchange(
+                HUGGING_FACE_API, HttpMethod.POST, entity,
+                (Class<List<Map<String, Object>>>) (Class<?>) List.class);
+
             if (response.getBody() != null && !response.getBody().isEmpty()) {
-                List<Map<String, Object>> results = (List<Map<String, Object>>) response.getBody();
+                List<Map<String, Object>> results = response.getBody();
                 if (!results.isEmpty()) {
                     Map<String, Object> result = results.get(0);
                     if (result.containsKey("score")) {
@@ -125,24 +161,24 @@ public class AIScamDetectionService {
         // Simple sentiment analysis for urgency/pressure tactics
         String lower = message.toLowerCase();
         double urgencyScore = 0.0;
-        
+
         String[] urgentPhrases = {"act now", "don't wait", "limited time", "expires soon", 
             "immediate action", "verify now", "click here now"};
-        
+
         for (String phrase : urgentPhrases) {
             if (lower.contains(phrase)) urgencyScore += 0.2;
         }
-        
+
         // Excessive punctuation (!!!, ???)
         if (message.matches(".*[!?]{3,}.*")) urgencyScore += 0.1;
-        
+
         // ALL CAPS words
         long capsWords = Arrays.stream(message.split("\\s+"))
             .filter(word -> word.length() > 2 && word.equals(word.toUpperCase()))
             .count();
-        
+
         if (capsWords > 2) urgencyScore += 0.15;
-        
+
         return Math.min(urgencyScore, 1.0);
     }
     

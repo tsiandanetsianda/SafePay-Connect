@@ -12,9 +12,14 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.safepay.model.ScamDetectionRequest;
 import com.safepay.model.ScamDetectionResult;
 import com.safepay.service.ScamDetectionService;
 
+/**
+ * Controller for handling scam detection requests.
+ * This class provides endpoints for interacting with the scam detection service.
+ */
 @RestController
 @RequestMapping("/api/scam")
 @CrossOrigin(origins = "*")
@@ -22,6 +27,27 @@ public class ScamDetectionController {
 
     @Autowired
     private ScamDetectionService scamDetectionService;
+
+    /**
+     * Constructor for ScamDetectionController.
+     * 
+     * @param scamDetectionService the service used for scam detection.
+     */
+    public ScamDetectionController(ScamDetectionService scamDetectionService) {
+        this.scamDetectionService = scamDetectionService;
+    }
+
+    /**
+     * Endpoint for detecting scams.
+     * 
+     * @param request the request containing data for scam detection.
+     * @return the result of the scam detection.
+     */
+    @PostMapping("/detect")
+    public ResponseEntity<ScamDetectionResult> detectScam(@RequestBody ScamDetectionRequest request) {
+        ScamDetectionResult result = scamDetectionService.detectScam(request.getMessage());
+        return ResponseEntity.ok(result);
+    }
 
     @PostMapping("/analyze")
     public ResponseEntity<ScamDetectionResult> analyzeMessage(@RequestBody Map<String, String> request) {

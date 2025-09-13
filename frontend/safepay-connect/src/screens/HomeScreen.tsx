@@ -44,15 +44,6 @@ const HomeScreen = () => {
             <Text style={styles.statPeriod}>This month</Text>
           </View>
 
-          <View style={[styles.statCard, { backgroundColor: '#4ECDC420' }]}>
-            <View style={styles.statIconContainer}>
-              <Ionicons name="trending-up" size={24} color="#4ECDC4" />
-            </View>
-            <Text style={styles.statNumber}>R 12.5K</Text>
-            <Text style={styles.statLabel}>Money Saved</Text>
-            <Text style={styles.statPeriod}>Total saved</Text>
-          </View>
-
           <View style={[styles.statCard, { backgroundColor: '#6C5CE720' }]}>
             <View style={styles.statIconContainer}>
               <Ionicons name="checkmark-done" size={24} color="#6C5CE7" />
